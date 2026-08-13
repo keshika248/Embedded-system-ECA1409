@@ -1,0 +1,69 @@
+#include <reg51.h>
+
+unsigned int ms_count = 0;
+unsigned char watchdog_count = 0;
+
+void timer0_ISR(void) interrupt 1
+{
+    TH0 = 0xFC;
+    TL0 = 0x66;
+
+    ms_count++;
+
+    /* Sensor task - every 100 ms */
+    if (ms_count == 100)
+    {
+        P1 = 0x01;
+    }
+
+    /* Engine control task - every 200 ms */
+    if (ms_count == 200)
+    {
+        P1 = 0x02;
+    }
+
+    /* Diagnostic task - every 500 ms */
+    if (ms_count == 500)
+    {
+        P1 = 0x04;
+    }
+
+    /* Watchdog */
+    watchdog_count++;
+
+    /* Watchdog recovery */
+    if (watchdog_count >= 100)
+    {
+        watchdog_count = 0;
+        P1 = 0x08;
+    }
+
+    /* Restart scheduling cycle */
+    if (ms_count >= 500)
+    {
+        ms_count = 0;
+    }
+}
+
+void timer0_init(void)
+{
+    TMOD = 0x01;
+
+    TH0 = 0xFC;
+    TL0 = 0x66;
+
+    ET0 = 1;
+    EA = 1;
+    TR0 = 1;
+}
+
+void main(void)
+{
+    P1 = 0x00;
+
+    timer0_init();
+
+    while (1)
+    {
+    }
+}
