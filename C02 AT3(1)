@@ -1,0 +1,105 @@
+#include <reg51.h>
+#include <stdio.h>
+
+unsigned int sensor_value;
+unsigned int actuator_state;
+unsigned int cycle;
+
+/* UART initialization */
+void UART_Init(void)
+{
+    SCON = 0x50;       /* UART mode 1, 8-bit data, receiver enabled */
+    TMOD = 0x20;       /* Timer 1, mode 2, auto reload */
+    TH1 = 0xFD;        /* 9600 baud for 11.0592 MHz crystal */
+    TL1 = 0xFD;
+    TR1 = 1;           /* Start Timer 1 */
+    TI = 1;
+}
+
+/* Send one character to UART */
+char putchar(char c)
+{
+    SBUF = c;
+    while(TI == 0);
+    TI = 0;
+
+    return c;
+}
+
+/* Delay simulation */
+void delay_ms(unsigned int ms)
+{
+    unsigned int i, j;
+
+    for(i = 0; i < ms; i++)
+    {
+        for(j = 0; j < 120; j++);
+    }
+}
+
+/* Sensor task */
+void sensor_task(void)
+{
+    sensor_value = sensor_value + 10;
+
+    if(sensor_value > 100)
+        sensor_value = 0;
+}
+
+/* Controller task */
+void controller_task(void)
+{
+    if(sensor_value >= 50)
+        actuator_state = 1;
+    else
+        actuator_state = 0;
+}
+
+/* Actuator task */
+void actuator_task(void)
+{
+    if(actuator_state == 1)
+        printf("Actuator: ON\n");
+    else
+        printf("Actuator: OFF\n");
+}
+
+void main(void)
+{
+    sensor_value = 0;
+    actuator_state = 0;
+
+    UART_Init();
+
+    printf("\n================================\n");
+    printf(" SIMPLE EMBEDDED CONTROLLER\n");
+    printf(" TIMING SIMULATION\n");
+    printf("================================\n");
+
+    for(cycle = 1; cycle <= 10; cycle++)
+    {
+        printf("\nCycle %u\n", cycle);
+
+        printf("Sensor Task Started\n");
+
+        sensor_task();
+
+        printf("Sensor Value = %u\n", sensor_value);
+
+        printf("Controller Task Started\n");
+
+        controller_task();
+
+        printf("Actuator Task Started\n");
+
+        actuator_task();
+
+        printf("Cycle Delay = 100 ms\n");
+
+        delay_ms(100);
+    }
+
+    printf("\nSimulation Completed\n");
+
+    while(1);
+}
