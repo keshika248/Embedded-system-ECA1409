@@ -1,0 +1,139 @@
+#include <reg51.h>
+
+unsigned int shared_data = 0;
+unsigned int producer_count = 0;
+unsigned int consumer_count = 0;
+unsigned int cycle;
+
+bit locked = 0;
+
+void UART_Init(void)
+{
+    SCON = 0x50;
+    TMOD = 0x20;
+    TH1 = 0xFD;
+    TL1 = 0xFD;
+    TR1 = 1;
+    TI = 1;
+}
+
+void putchar(char c)
+{
+    SBUF = c;
+    while(TI == 0);
+    TI = 0;
+}
+
+void print_string(char *s)
+{
+    while(*s)
+        putchar(*s++);
+}
+
+void print_num(unsigned int n)
+{
+    if(n >= 100)
+        putchar((n / 100) + '0');
+
+    if(n >= 10)
+        putchar(((n / 10) % 10) + '0');
+
+    putchar((n % 10) + '0');
+}
+
+void delay_ms(unsigned int ms)
+{
+    unsigned int i,j;
+
+    for(i=0;i<ms;i++)
+        for(j=0;j<120;j++);
+}
+
+void lock_resource(void)
+{
+    while(locked);
+    locked = 1;
+    print_string("LOCK\n");
+}
+
+void unlock_resource(void)
+{
+    locked = 0;
+    print_string("UNLOCK\n");
+}
+
+void producer(void)
+{
+    print_string("T1 Producer\n");
+
+    lock_resource();
+
+    shared_data = shared_data + 10;
+    producer_count++;
+
+    print_string("Data=");
+    print_num(shared_data);
+    print_string("\n");
+
+    unlock_resource();
+}
+
+void consumer(void)
+{
+    print_string("T2 Consumer\n");
+
+    lock_resource();
+
+    if(shared_data > 0)
+    {
+        print_string("Consumed=");
+        print_num(shared_data);
+        print_string("\n");
+
+        shared_data = 0;
+        consumer_count++;
+    }
+
+    unlock_resource();
+}
+
+void monitor(void)
+{
+    print_string("T3 Monitor\n");
+
+    lock_resource();
+
+    print_string("Shared=");
+    print_num(shared_data);
+    print_string("\n");
+
+    unlock_resource();
+}
+
+void main(void)
+{
+    UART_Init();
+
+    print_string("MULTI THREAD SYSTEM\n");
+    print_string("SYNCHRONIZATION\n");
+
+    for(cycle=1; cycle<=5; cycle++)
+    {
+        print_string("\nCYCLE ");
+        print_num(cycle);
+        print_string("\n");
+
+        producer();
+        delay_ms(50);
+
+        consumer();
+        delay_ms(50);
+
+        monitor();
+        delay_ms(100);
+    }
+
+    print_string("\nDONE\n");
+
+    while(1);
+}
